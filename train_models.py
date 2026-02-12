@@ -4,7 +4,8 @@ import os
 import json
 
 from sklearn.linear_model import LogisticRegression
-from sklearn.preprocessing import StandardScaler
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.preprocessing import StandardScaler, label_binarize
 from sklearn.metrics import (
     accuracy_score,
     precision_score,
@@ -13,17 +14,26 @@ from sklearn.metrics import (
     roc_auc_score,
     matthews_corrcoef
 )
-from sklearn.preprocessing import label_binarize
 from joblib import dump
 
-
-
+# -----------------------------
+# Setup
+# -----------------------------
 os.makedirs("models", exist_ok=True)
 
+# -----------------------------
+# Load reduced dataset
+# -----------------------------
 X_train = pd.read_csv("data/X_train_selected.csv")
 X_test = pd.read_csv("data/X_test_selected.csv")
 y_train = pd.read_csv("data/y_train.csv").values.ravel()
 y_test = pd.read_csv("data/y_test.csv").values.ravel()
+
+metrics_all = {}
+
+# =========================================================
+# 1 Logistic Regression
+# =========================================================
 
 scaler = StandardScaler()
 X_train_scaled = scaler.fit_transform(X_train)
@@ -31,57 +41,64 @@ X_test_scaled = scaler.transform(X_test)
 
 dump(scaler, "models/scaler.pkl")
 
-# -----------------------------
-# Train Logistic Regression
-# -----------------------------
-model = LogisticRegression(
-    max_iter=1000,
-    random_state=42
-)
+log_model = LogisticRegression(max_iter=1000, random_state=42)
+log_model.fit(X_train_scaled, y_train)
+dump(log_model, "models/logistic.pkl")
 
-model.fit(X_train_scaled, y_train)
-dump(model, "models/logistic.pkl")
+y_pred = log_model.predict(X_test_scaled)
+y_prob = log_model.predict_proba(X_test_scaled)
 
-# -----------------------------
-# Predictions
-# -----------------------------
-y_pred = model.predict(X_test_scaled)
-y_prob = model.predict_proba(X_test_scaled)
-
-# -----------------------------
-# Metrics
-# -----------------------------
-accuracy = accuracy_score(y_test, y_pred)
-precision = precision_score(y_test, y_pred, average="macro")
-recall = recall_score(y_test, y_pred, average="macro")
-f1 = f1_score(y_test, y_pred, average="macro")
-mcc = matthews_corrcoef(y_test, y_pred)
-
-# Multiclass AUC (OvR)
 classes = np.unique(y_test)
 y_test_bin = label_binarize(y_test, classes=classes)
 
-auc = roc_auc_score(
-    y_test_bin,
-    y_prob,
-    multi_class="ovr",
-    average="macro"
+metrics_all["Logistic Regression"] = {
+    "Accuracy": accuracy_score(y_test, y_pred),
+    "Precision": precision_score(y_test, y_pred, average="macro"),
+    "Recall": recall_score(y_test, y_pred, average="macro"),
+    "F1 Score": f1_score(y_test, y_pred, average="macro"),
+    "AUC": roc_auc_score(y_test_bin, y_prob, multi_class="ovr", average="macro"),
+    "MCC": matthews_corrcoef(y_test, y_pred)
+}
+log_model.score(X_train_scaled, y_train)
+
+print("Logistic Regression trained.")
+
+# =========================================================
+# 2 Decision Tree
+# =========================================================
+
+dt_model = DecisionTreeClassifier(
+    random_state=42,
+    max_depth=10 # used none, it had high variance. using 10 has reduced overfitting.
 )
 
-metrics = {
-    "Accuracy": accuracy,
-    "Precision": precision,
-    "Recall": recall,
-    "F1 Score": f1,
-    "AUC": auc,
-    "MCC": mcc
+dt_model.fit(X_train, y_train)
+dump(dt_model, "models/decision_tree.pkl")
+
+y_pred_dt = dt_model.predict(X_test)
+y_prob_dt = dt_model.predict_proba(X_test)
+
+metrics_all["Decision Tree"] = {
+    "Accuracy": accuracy_score(y_test, y_pred_dt),
+    "Precision": precision_score(y_test, y_pred_dt, average="macro"),
+    "Recall": recall_score(y_test, y_pred_dt, average="macro"),
+    "F1 Score": f1_score(y_test, y_pred_dt, average="macro"),
+    "AUC": roc_auc_score(y_test_bin, y_prob_dt, multi_class="ovr", average="macro"),
+    "MCC": matthews_corrcoef(y_test, y_pred_dt)
 }
+dt_model.score(X_train, y_train)
 
-# Save metrics
-with open("models/logistic_metrics.json", "w") as f:
-    json.dump(metrics, f, indent=4)
+print("Decision Tree trained.")
 
-print("Logistic Regression trained and saved.")
-print("Metrics:")
-for k, v in metrics.items():
-    print(f"{k}: {v:.4f}")
+# =========================================================
+# Save Metrics
+# =========================================================
+
+with open("models/all_metrics.json", "w") as f:
+    json.dump(metrics_all, f, indent=4)
+
+print("\nAll Metrics:")
+for model_name, metrics in metrics_all.items():
+    print(f"\n{model_name}")
+    for k, v in metrics.items():
+        print(f"{k}: {v:.4f}")
