@@ -1,72 +1,89 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
+import json
+import joblib
+
+from sklearn.metrics import (
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
+    roc_auc_score,
+    matthews_corrcoef,
+    confusion_matrix
+)
+from sklearn.preprocessing import label_binarize
 import matplotlib.pyplot as plt
-from sklearn.ensemble import RandomForestClassifier
+import seaborn as sns
 
-st.set_page_config(page_title="HAR ML App", layout="wide")
+st.title("Human Activity Recognition")
+st.write("Multiclass Classification using Logistic Regression (Top 30 Features)")
 
-st.title("Human Activity Recognition (HAR)")
-st.markdown("Multiclass Classification using Smartphone Sensor Data")
+# -----------------------------
+# Load Data
+# -----------------------------
+X_test = pd.read_csv("data/X_test_selected.csv")
+y_test = pd.read_csv("data/y_test.csv").values.ravel()
 
-# -------------------------------
-# Load dataset
-# -------------------------------
-@st.cache_data
-def load_data():
-    X_train = pd.read_csv("data/X_train.csv")
-    y_train = pd.read_csv("data/y_train.csv")
-    X_test = pd.read_csv("data/X_test.csv")
-    y_test = pd.read_csv("data/y_test.csv")
-    return X_train, y_train, X_test, y_test
+# -----------------------------
+# Load Model & Scaler
+# -----------------------------
+model = joblib.load("models/logistic.pkl")
+scaler = joblib.load("models/scaler.pkl")
 
-X_train, y_train, X_test, y_test = load_data()
+# -----------------------------
+# Scale
+# -----------------------------
+X_test_scaled = scaler.transform(X_test)
 
-st.sidebar.header("Dataset Overview")
-st.sidebar.write("Training Samples:", X_train.shape[0])
-st.sidebar.write("Original Features:", X_train.shape[1])
+# -----------------------------
+# Predictions
+# -----------------------------
+y_pred = model.predict(X_test_scaled)
+y_prob = model.predict_proba(X_test_scaled)
 
-# -------------------------------
-# Feature Selection
-# -------------------------------
-st.header("Feature Selection (Random Forest Importance)")
+# -----------------------------
+# Metrics
+# -----------------------------
+accuracy = accuracy_score(y_test, y_pred)
+precision = precision_score(y_test, y_pred, average="macro")
+recall = recall_score(y_test, y_pred, average="macro")
+f1 = f1_score(y_test, y_pred, average="macro")
+mcc = matthews_corrcoef(y_test, y_pred)
 
-@st.cache_resource
-def compute_feature_importance(X, y):
-    rf = RandomForestClassifier(
-        n_estimators=100,
-        random_state=42,
-        n_jobs=-1
-    )
-    rf.fit(X, y.values.ravel())
-    return rf.feature_importances_
+classes = np.unique(y_test)
+y_test_bin = label_binarize(y_test, classes=classes)
 
-importances = compute_feature_importance(X_train, y_train)
+auc = roc_auc_score(
+    y_test_bin,
+    y_prob,
+    multi_class="ovr",
+    average="macro"
+)
 
-importance_df = pd.DataFrame({
-    "Feature": X_train.columns,
-    "Importance": importances
-}).sort_values(by="Importance", ascending=False)
+# -----------------------------
+# Display Metrics
+# -----------------------------
+st.subheader("Model Evaluation Metrics")
 
-top_30 = importance_df.head(30)
+st.write(f"**Accuracy:** {accuracy:.4f}")
+st.write(f"**Precision (Macro):** {precision:.4f}")
+st.write(f"**Recall (Macro):** {recall:.4f}")
+st.write(f"**F1 Score (Macro):** {f1:.4f}")
+st.write(f"**AUC (OvR):** {auc:.4f}")
+st.write(f"**MCC:** {mcc:.4f}")
 
-st.subheader("Feature Reduction Summary")
-st.write("Original Feature Count:", X_train.shape[1])
-st.write("Selected Top 30 Features")
+# -----------------------------
+# Confusion Matrix
+# -----------------------------
+st.subheader("Confusion Matrix")
 
-# -------------------------------
-# Plot Top 10 Features
-# -------------------------------
-st.subheader("Top 10 Important Features")
-
-top_10 = importance_df.head(10)
+cm = confusion_matrix(y_test, y_pred)
 
 fig, ax = plt.subplots()
-ax.barh(top_10["Feature"], top_10["Importance"])
-ax.invert_yaxis()
-ax.set_xlabel("Importance Score")
-ax.set_title("Top 10 Feature Importances")
+sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax)
+ax.set_xlabel("Predicted")
+ax.set_ylabel("Actual")
 
 st.pyplot(fig)
-
-st.markdown("---")
-st.caption("M.Tech AIML - Assignment 2 | Feature Selection Phase")
