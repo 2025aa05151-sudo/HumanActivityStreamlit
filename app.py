@@ -20,6 +20,13 @@ import seaborn as sns
 st.title("Human Activity Recognition")
 st.write("Multiclass Classification Dashboard")
 
+tab1, tab2, tab3 = st.tabs([
+    "Overview",
+    "Evaluation",
+    "Explainability"
+])
+
+
 # -----------------------------
 # Model Configuration
 # -----------------------------
@@ -50,18 +57,31 @@ CLASS_NAMES = {
     6: "Laying"
 }
 
+with tab1:
 # -----------------------------
 # Model Leaderboard
 # -----------------------------
-st.subheader("Model Comparison")
 
-with open("models/all_metrics.json") as f:
-    all_metrics = json.load(f)
+    st.subheader("Model Comparison")
 
-df_metrics = pd.DataFrame(all_metrics).T
-df_metrics = df_metrics.sort_values("Accuracy", ascending=False)
+    with open("models/all_metrics.json") as f:
+        all_metrics = json.load(f)
 
-st.dataframe(df_metrics.style.format("{:.4f}"))
+    df_metrics = pd.DataFrame(all_metrics).T
+    df_metrics = df_metrics.sort_values("Accuracy", ascending=False)
+    best_model = df_metrics.index[0]
+
+    st.success(f"Best Model (by Accuracy): {best_model}")
+
+    st.dataframe(df_metrics.style.format("{:.4f}"))
+
+    st.markdown("---")
+
+    selected_model_name = st.selectbox(
+        "Choose Model",
+        list(MODEL_CONFIG.keys())
+    )
+
 
 # -----------------------------
 # Model Selection
@@ -95,200 +115,206 @@ else:
 classes = np.unique(y_test)
 y_test_bin = label_binarize(y_test, classes=classes)
 
+
+
+with tab2:
+
+
 # -----------------------------
 # Metrics
 # -----------------------------
-accuracy = accuracy_score(y_test, y_pred)
-precision = precision_score(y_test, y_pred, average="macro")
-recall = recall_score(y_test, y_pred, average="macro")
-f1 = f1_score(y_test, y_pred, average="macro")
-mcc = matthews_corrcoef(y_test, y_pred)
+    accuracy = accuracy_score(y_test, y_pred)
+    precision = precision_score(y_test, y_pred, average="macro")
+    recall = recall_score(y_test, y_pred, average="macro")
+    f1 = f1_score(y_test, y_pred, average="macro")
+    mcc = matthews_corrcoef(y_test, y_pred)
 
-auc = None
-if y_prob is not None:
-    auc = roc_auc_score(
-        y_test_bin,
-        y_prob,
-        multi_class="ovr",
-        average="macro"
-    )
+    auc = None
+    if y_prob is not None:
+        auc = roc_auc_score(
+            y_test_bin,
+            y_prob,
+            multi_class="ovr",
+            average="macro"
+        )
 
 # -----------------------------
 # Display Metrics
 # -----------------------------
-st.subheader(f"Evaluation Metrics — {selected_model_name}")
+    st.subheader(f"Evaluation Metrics — {selected_model_name}")
 
-col1, col2, col3, col4, col5, col6 = st.columns(6)
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
 
-col1.metric("Accuracy", f"{accuracy:.4f}")
-col2.metric("Precision", f"{precision:.4f}")
-col3.metric("Recall", f"{recall:.4f}")
-col4.metric("F1 Score", f"{f1:.4f}")
+    col1.metric("Accuracy", f"{accuracy:.4f}")
+    col2.metric("Precision", f"{precision:.4f}")
+    col3.metric("Recall", f"{recall:.4f}")
+    col4.metric("F1 Score", f"{f1:.4f}")
 
-if auc is not None:
-    col5.metric("AUC", f"{auc:.4f}")
-else:
-    col5.metric("AUC", "N/A")
+    if auc is not None:
+        col5.metric("AUC", f"{auc:.4f}")
+    else:
+        col5.metric("AUC", "N/A")
 
-col6.metric("MCC", f"{mcc:.4f}")
+    col6.metric("MCC", f"{mcc:.4f}")
 
 
 # -----------------------------
 # Confusion Matrix
 # -----------------------------
-st.subheader("Confusion Matrix")
+    st.subheader("Confusion Matrix")
 
-labels = np.unique(y_test)
-label_names = [CLASS_NAMES[l] for l in labels]
+    labels = np.unique(y_test)
+    label_names = [CLASS_NAMES[l] for l in labels]
 
-cm = confusion_matrix(y_test, y_pred, labels=labels)
+    cm = confusion_matrix(y_test, y_pred, labels=labels)
 
-fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=(8, 6))
 
-sns.heatmap(
-    cm,
-    annot=True,
-    fmt="d",
-    cmap="Blues",
-    xticklabels=label_names,
-    yticklabels=label_names,
-    ax=ax
-)
+    sns.heatmap(
+        cm,
+        annot=True,
+        fmt="d",
+        cmap="Blues",
+        xticklabels=label_names,
+        yticklabels=label_names,
+        ax=ax
+    )
 
-ax.set_xlabel("Predicted")
-ax.set_ylabel("Actual")
+    ax.set_xlabel("Predicted")
+    ax.set_ylabel("Actual")
 
-plt.xticks(rotation=45, ha="right")
-plt.yticks(rotation=0)
+    plt.xticks(rotation=45, ha="right")
+    plt.yticks(rotation=0)
 
-st.pyplot(fig)
+    st.pyplot(fig)
 
 
 # -----------------------------
 # Most Confused Class Pair
 # -----------------------------
-cm_no_diag = cm.copy()
-np.fill_diagonal(cm_no_diag, 0)
+    cm_no_diag = cm.copy()
+    np.fill_diagonal(cm_no_diag, 0)
 
-max_confusion = np.unravel_index(
-    np.argmax(cm_no_diag),
-    cm_no_diag.shape
-)
+    max_confusion = np.unravel_index(
+        np.argmax(cm_no_diag),
+        cm_no_diag.shape
+    )
 
-actual_idx, pred_idx = max_confusion
+    actual_idx, pred_idx = max_confusion
 
-actual_class = CLASS_NAMES[labels[actual_idx]]
-pred_class = CLASS_NAMES[labels[pred_idx]]
+    actual_class = CLASS_NAMES[labels[actual_idx]]
+    pred_class = CLASS_NAMES[labels[pred_idx]]
 
-st.info(
-    f"Most confused: **{actual_class}** → predicted as **{pred_class}** "
-    f"({cm_no_diag[actual_idx, pred_idx]} times)"
-)
+    st.info(
+        f"Most confused: **{actual_class}** → predicted as **{pred_class}** "
+        f"({cm_no_diag[actual_idx, pred_idx]} times)"
+    )
 
 
 # -----------------------------
 # Per-Class Metrics
 # -----------------------------
-from sklearn.metrics import classification_report
+    from sklearn.metrics import classification_report
 
-st.subheader("Per-Class Metrics")
+    st.subheader("Per-Class Metrics")
 
-report_dict = classification_report(
-    y_test,
-    y_pred,
-    output_dict=True
-)
+    report_dict = classification_report(
+        y_test,
+        y_pred,
+        output_dict=True
+    )
 
-report_df = pd.DataFrame(report_dict).T
+    report_df = pd.DataFrame(report_dict).T
 
-# Remove overall rows
-report_df = report_df.loc[
-    ~report_df.index.isin(["accuracy", "macro avg", "weighted avg"])
-]
+    # Remove overall rows
+    report_df = report_df.loc[
+        ~report_df.index.isin(["accuracy", "macro avg", "weighted avg"])
+    ]
 
-# Replace numeric class labels with names
-report_df.index = [
-    CLASS_NAMES[int(i)] for i in report_df.index
-]
+    # Replace numeric class labels with names
+    report_df.index = [
+        CLASS_NAMES[int(i)] for i in report_df.index
+    ]
 
-st.dataframe(report_df.style.format("{:.4f}"))
+    st.dataframe(report_df.style.format("{:.4f}"))
 
 # -----------------------------
 # ROC Curves
 # -----------------------------
-if y_prob is not None:
+    if y_prob is not None:
 
-    st.subheader("ROC Curves (One-vs-Rest)")
+        st.subheader("ROC Curves (One-vs-Rest)")
 
-    from sklearn.metrics import roc_curve, auc
+        from sklearn.metrics import roc_curve, auc
 
-    y_test_bin = label_binarize(y_test, classes=labels)
+        y_test_bin = label_binarize(y_test, classes=labels)
 
-    fig_roc, ax_roc = plt.subplots(figsize=(8, 6))
+        fig_roc, ax_roc = plt.subplots(figsize=(8, 6))
 
-    for i, label in enumerate(labels):
-        fpr, tpr, _ = roc_curve(y_test_bin[:, i], y_prob[:, i])
-        roc_auc = auc(fpr, tpr)
+        for i, label in enumerate(labels):
+            fpr, tpr, _ = roc_curve(y_test_bin[:, i], y_prob[:, i])
+            roc_auc = auc(fpr, tpr)
 
-        ax_roc.plot(
-            fpr,
-            tpr,
-            label=f"{CLASS_NAMES[label]} (AUC = {roc_auc:.3f})"
-        )
+            ax_roc.plot(
+                fpr,
+                tpr,
+                label=f"{CLASS_NAMES[label]} (AUC = {roc_auc:.3f})"
+            )
 
-    ax_roc.plot([0, 1], [0, 1], linestyle="--")
+        ax_roc.plot([0, 1], [0, 1], linestyle="--")
 
-    ax_roc.set_xlabel("False Positive Rate")
-    ax_roc.set_ylabel("True Positive Rate")
-    ax_roc.legend()
+        ax_roc.set_xlabel("False Positive Rate")
+        ax_roc.set_ylabel("True Positive Rate")
+        ax_roc.legend()
 
-    st.pyplot(fig_roc)
+        st.pyplot(fig_roc)
 
 
 # -----------------------------
 # Prediction Distribution
 # -----------------------------
-st.subheader("Prediction Distribution")
+    st.subheader("Prediction Distribution")
 
-pred_counts = pd.Series(y_pred).value_counts().sort_index()
+    pred_counts = pd.Series(y_pred).value_counts().sort_index()
 
-pred_counts.index = [CLASS_NAMES[i] for i in pred_counts.index]
+    pred_counts.index = [CLASS_NAMES[i] for i in pred_counts.index]
 
-fig2, ax2 = plt.subplots(figsize=(8, 5))
+    fig2, ax2 = plt.subplots(figsize=(8, 5))
 
-pred_counts.plot(kind="bar", ax=ax2)
+    pred_counts.plot(kind="bar", ax=ax2)
 
-ax2.set_xlabel("Predicted Activity")
-ax2.set_ylabel("Count")
+    ax2.set_xlabel("Predicted Activity")
+    ax2.set_ylabel("Count")
 
-plt.xticks(rotation=45, ha="right")
+    plt.xticks(rotation=45, ha="right")
 
-st.pyplot(fig2)
+    st.pyplot(fig2)
 
+
+with tab3:
 # -----------------------------
 # Feature Importance
 # -----------------------------
-if selected_model_name in ["Decision Tree", "Random Forest", "XGBoost"]:
-    st.subheader("Feature Importance")
+    if selected_model_name in ["Decision Tree", "Random Forest", "XGBoost"]:
+        st.subheader("Feature Importance")
 
-    if selected_model_name == "XGBoost":
         importances = model.feature_importances_
+        feature_names = X_test.columns
+
+        importance_df = pd.DataFrame({
+            "Feature": feature_names,
+            "Importance": importances
+        }).sort_values("Importance", ascending=False).head(15)
+
+        fig_imp, ax_imp = plt.subplots(figsize=(8, 6))
+        sns.barplot(
+            data=importance_df,
+            x="Importance",
+            y="Feature",
+            ax=ax_imp
+        )
+
+        st.pyplot(fig_imp)
+
     else:
-        importances = model.feature_importances_
-
-    feature_names = X_test.columns
-
-    importance_df = pd.DataFrame({
-        "Feature": feature_names,
-        "Importance": importances
-    }).sort_values("Importance", ascending=False).head(15)
-
-    fig3, ax3 = plt.subplots()
-    sns.barplot(
-        data=importance_df,
-        x="Importance",
-        y="Feature",
-        ax=ax3
-    )
-
-    st.pyplot(fig3)
+        st.info("Explainability not available for this model.")    
