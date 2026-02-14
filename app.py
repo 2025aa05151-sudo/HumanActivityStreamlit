@@ -47,12 +47,20 @@ selected_model_name = st.selectbox(
 )
 
 model_path = MODEL_CONFIG[selected_model_name]
-model = joblib.load(model_path)
+loaded = joblib.load(model_path)
+
+if selected_model_name == "XGBoost":
+    model, le = loaded
+else:
+    model = loaded
 
 # -----------------------------
 # Predictions
 # -----------------------------
 y_pred = model.predict(X_test)
+
+if selected_model_name == "XGBoost":
+    y_pred = le.inverse_transform(y_pred)
 
 if hasattr(model, "predict_proba"):
     y_prob = model.predict_proba(X_test)

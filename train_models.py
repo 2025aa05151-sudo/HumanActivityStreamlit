@@ -203,46 +203,41 @@ print("Random Forest trained.")
 # =========================================================
 
 from xgboost import XGBClassifier
+from sklearn.preprocessing import LabelEncoder
 
-# Adjust labels to start from 0
-y_train_xgb = y_train - 1
-y_test_xgb = y_test - 1
+# Encode labels
+le = LabelEncoder()
+y_train_enc = le.fit_transform(y_train)
+y_test_enc = le.transform(y_test)
 
 xgb_model = XGBClassifier(
     n_estimators=200,
     learning_rate=0.1,
     max_depth=6,
     objective="multi:softprob",
-    num_class=6,
     random_state=42,
-    use_label_encoder=False,
     eval_metric="mlogloss"
 )
 
-xgb_model.fit(X_train, y_train_xgb)
-dump(xgb_model, "models/xgboost.pkl")
+xgb_model.fit(X_train, y_train_enc)
+
+# Save both model and encoder together
+dump((xgb_model, le), "models/xgboost.pkl")
 
 y_pred_xgb = xgb_model.predict(X_test)
 y_prob_xgb = xgb_model.predict_proba(X_test)
 
-# Binarize adjusted labels for AUC
-classes_xgb = np.unique(y_test_xgb)
-y_test_bin_xgb = label_binarize(y_test_xgb, classes=classes_xgb)
+# Convert predictions back to original labels
+y_pred_decoded = le.inverse_transform(y_pred_xgb)
 
 metrics_all["XGBoost"] = {
-    "Accuracy": accuracy_score(y_test_xgb, y_pred_xgb),
-    "Precision": precision_score(y_test_xgb, y_pred_xgb, average="macro"),
-    "Recall": recall_score(y_test_xgb, y_pred_xgb, average="macro"),
-    "F1 Score": f1_score(y_test_xgb, y_pred_xgb, average="macro"),
-    "AUC": roc_auc_score(
-        y_test_bin_xgb,
-        y_prob_xgb,
-        multi_class="ovr",
-        average="macro"
-    ),
-    "MCC": matthews_corrcoef(y_test_xgb, y_pred_xgb)
+    "Accuracy": accuracy_score(y_test, y_pred_decoded),
+    "Precision": precision_score(y_test, y_pred_decoded, average="macro"),
+    "Recall": recall_score(y_test, y_pred_decoded, average="macro"),
+    "F1 Score": f1_score(y_test, y_pred_decoded, average="macro"),
+    "AUC": roc_auc_score(y_test_bin, y_prob_xgb, multi_class="ovr", average="macro"),
+    "MCC": matthews_corrcoef(y_test, y_pred_decoded)
 }
-
 
 print("XGBoost trained.")
 
