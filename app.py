@@ -3,6 +3,8 @@ import pandas as pd
 import numpy as np
 import joblib
 import json
+import shap
+
 
 from sklearn.metrics import (
     accuracy_score,
@@ -307,7 +309,6 @@ with tab3:
 
         st.pyplot(fig_imp)
 
-        import shap
 
         st.markdown("---")
         st.subheader("SHAP Explainability")
