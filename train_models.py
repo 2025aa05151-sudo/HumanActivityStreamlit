@@ -14,12 +14,34 @@ from sklearn.metrics import (
     roc_auc_score,
     matthews_corrcoef
 )
+from sklearn.model_selection import StratifiedKFold, cross_val_score
 from joblib import dump
 
 # -----------------------------
 # Setup
 # -----------------------------
 os.makedirs("models", exist_ok=True)
+
+# -----------------------------
+# Cross-Validation Helper
+# -----------------------------
+def compute_cv_metrics(model, X, y):
+    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+
+    cv_accuracy = cross_val_score(
+        model, X, y, cv=skf, scoring="accuracy", n_jobs=-1
+    )
+
+    cv_f1 = cross_val_score(
+        model, X, y, cv=skf, scoring="f1_macro", n_jobs=-1
+    )
+
+    return {
+        "CV Accuracy Mean": cv_accuracy.mean(),
+        "CV Accuracy Std": cv_accuracy.std(),
+        "CV F1 Mean": cv_f1.mean(),
+        "CV F1 Std": cv_f1.std()
+    }
 
 # -----------------------------
 # Load reduced dataset
@@ -52,15 +74,19 @@ y_prob = log_pipeline.predict_proba(X_test)
 classes = np.unique(y_test)
 y_test_bin = label_binarize(y_test, classes=classes)
 
+train_acc = log_pipeline.score(X_train, y_train)
+cv_results = compute_cv_metrics(log_pipeline, X_train, y_train)
+
 metrics_all["Logistic Regression"] = {
-    "Accuracy": accuracy_score(y_test, y_pred),
+    "Train Accuracy": train_acc,
+    **cv_results,
+    "Test Accuracy": accuracy_score(y_test, y_pred),
     "Precision": precision_score(y_test, y_pred, average="macro"),
     "Recall": recall_score(y_test, y_pred, average="macro"),
     "F1 Score": f1_score(y_test, y_pred, average="macro"),
     "AUC": roc_auc_score(y_test_bin, y_prob, multi_class="ovr", average="macro"),
     "MCC": matthews_corrcoef(y_test, y_pred)
 }
-log_pipeline.score(X_train, y_train)
 
 print("Logistic Regression trained.")
 
@@ -79,15 +105,19 @@ dump(dt_pipeline, "models/decision_tree.pkl")
 y_pred_dt = dt_pipeline.predict(X_test)
 y_prob_dt = dt_pipeline.predict_proba(X_test)
 
+train_acc = dt_pipeline.score(X_train, y_train)
+cv_results = compute_cv_metrics(dt_pipeline, X_train, y_train)
+
 metrics_all["Decision Tree"] = {
-    "Accuracy": accuracy_score(y_test, y_pred_dt),
+    "Train Accuracy": train_acc,
+    **cv_results,
+    "Test Accuracy": accuracy_score(y_test, y_pred_dt),
     "Precision": precision_score(y_test, y_pred_dt, average="macro"),
     "Recall": recall_score(y_test, y_pred_dt, average="macro"),
     "F1 Score": f1_score(y_test, y_pred_dt, average="macro"),
     "AUC": roc_auc_score(y_test_bin, y_prob_dt, multi_class="ovr", average="macro"),
     "MCC": matthews_corrcoef(y_test, y_pred_dt)
 }
-dt_pipeline.score(X_train, y_train)
 
 print("Decision Tree trained.")
 
@@ -129,8 +159,13 @@ dump(knn_pipeline, "models/knn.pkl")
 y_pred_knn = knn_pipeline.predict(X_test)
 y_prob_knn = knn_pipeline.predict_proba(X_test)
 
+train_acc = knn_pipeline.score(X_train, y_train)
+cv_results = compute_cv_metrics(knn_pipeline, X_train, y_train)
+
 metrics_all["KNN"] = {
-    "Accuracy": accuracy_score(y_test, y_pred_knn),
+    "Train Accuracy": train_acc,
+    **cv_results,
+    "Test Accuracy": accuracy_score(y_test, y_pred_knn),
     "Precision": precision_score(y_test, y_pred_knn, average="macro"),
     "Recall": recall_score(y_test, y_pred_knn, average="macro"),
     "F1 Score": f1_score(y_test, y_pred_knn, average="macro"),
@@ -157,8 +192,13 @@ dump(nb_model, "models/naive_bayes.pkl")
 y_pred_nb = nb_model.predict(X_test)
 y_prob_nb = nb_model.predict_proba(X_test)
 
+train_acc = nb_model.score(X_train, y_train)
+cv_results = compute_cv_metrics(nb_model, X_train, y_train)
+
 metrics_all["Naive Bayes"] = {
-    "Accuracy": accuracy_score(y_test, y_pred_nb),
+    "Train Accuracy": train_acc,
+    **cv_results,
+    "Test Accuracy": accuracy_score(y_test, y_pred_nb),
     "Precision": precision_score(y_test, y_pred_nb, average="macro"),
     "Recall": recall_score(y_test, y_pred_nb, average="macro"),
     "F1 Score": f1_score(y_test, y_pred_nb, average="macro"),
@@ -187,8 +227,13 @@ dump(rf_model, "models/random_forest.pkl")
 y_pred_rf = rf_model.predict(X_test)
 y_prob_rf = rf_model.predict_proba(X_test)
 
+train_acc = rf_model.score(X_train, y_train)
+cv_results = compute_cv_metrics(rf_model, X_train, y_train)
+
 metrics_all["Random Forest"] = {
-    "Accuracy": accuracy_score(y_test, y_pred_rf),
+    "Train Accuracy": train_acc,
+    **cv_results,
+    "Test Accuracy": accuracy_score(y_test, y_pred_rf),
     "Precision": precision_score(y_test, y_pred_rf, average="macro"),
     "Recall": recall_score(y_test, y_pred_rf, average="macro"),
     "F1 Score": f1_score(y_test, y_pred_rf, average="macro"),
@@ -227,11 +272,16 @@ dump((xgb_model, le), "models/xgboost.pkl")
 y_pred_xgb = xgb_model.predict(X_test)
 y_prob_xgb = xgb_model.predict_proba(X_test)
 
+train_acc = xgb_model.score(X_train, y_train_enc)
+cv_results = compute_cv_metrics(xgb_model, X_train, y_train_enc)
+
 # Convert predictions back to original labels
 y_pred_decoded = le.inverse_transform(y_pred_xgb)
 
 metrics_all["XGBoost"] = {
-    "Accuracy": accuracy_score(y_test, y_pred_decoded),
+    "Train Accuracy": train_acc,
+    **cv_results,
+    "Test Accuracy": accuracy_score(y_test, y_pred_decoded),
     "Precision": precision_score(y_test, y_pred_decoded, average="macro"),
     "Recall": recall_score(y_test, y_pred_decoded, average="macro"),
     "F1 Score": f1_score(y_test, y_pred_decoded, average="macro"),

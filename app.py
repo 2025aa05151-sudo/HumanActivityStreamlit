@@ -101,10 +101,11 @@ y_test_bin = label_binarize(y_test, classes=labels)
 # =========================================================
 # Tabs Layout
 # =========================================================
-tab1, tab2, tab3 = st.tabs([
+tab1, tab2, tab3, tab4 = st.tabs([
     "Overview",
     "Evaluation",
-    "Explainability"
+    "Explainability",
+    "Upload & Predict"
 ])
 
 
@@ -428,3 +429,97 @@ with tab3:
 
     else:
         st.info("Explainability not available for this model.")
+
+with tab4:
+
+    st.subheader("Upload Test Dataset (Features Only)")
+
+    st.markdown("### Generate Sample Test File")
+
+    sample_size = st.slider(
+        "Select number of test samples to generate",
+        min_value=10,
+        max_value=len(X_test),
+        value=100,
+        step=10
+    )
+
+    sampled_test = X_test.sample(n=sample_size, random_state=42)
+
+    csv_sample = sampled_test.to_csv(index=False).encode("utf-8")
+
+    st.download_button(
+        label="Download Sample Test CSV",
+        data=csv_sample,
+        file_name=f"test_upload_{sample_size}.csv",
+        mime="text/csv"
+    )
+
+    st.markdown("---")
+    st.markdown("### Or Upload Your Own Test File")
+
+    uploaded_file = st.file_uploader(
+        "Upload CSV file containing test features",
+        type="csv"
+    )
+
+    if uploaded_file is not None:
+
+        try:
+            uploaded_df = pd.read_csv(uploaded_file)
+
+            st.write("Uploaded Data Preview:")
+            st.dataframe(uploaded_df.head())
+
+            # Validate columns
+            expected_columns = X_test.columns.tolist()
+
+            if list(uploaded_df.columns) != expected_columns:
+                st.error("Uploaded CSV columns do not match training features.")
+                st.write("Expected columns:")
+                st.write(expected_columns)
+            else:
+                # Predict
+                predictions = model.predict(uploaded_df)
+
+                # Handle XGBoost decoding
+                if selected_model_name == "XGBoost":
+                    predictions = le.inverse_transform(predictions)
+
+                # Map class numbers to labels
+                prediction_labels = [CLASS_NAMES[p] for p in predictions]
+
+                result_df = uploaded_df.copy()
+                result_df["Predicted Activity"] = prediction_labels
+
+                st.success("Prediction Completed")
+
+                st.write("Prediction Results:")
+                st.dataframe(result_df.head())
+
+                # Prediction distribution
+                st.subheader("Prediction Distribution")
+
+                pred_counts = pd.Series(prediction_labels).value_counts()
+
+                fig_upload, ax_upload = plt.subplots(figsize=(8, 5))
+                pred_counts.plot(kind="bar", ax=ax_upload)
+
+                ax_upload.set_xlabel("Predicted Activity")
+                ax_upload.set_ylabel("Count")
+                plt.xticks(rotation=45, ha="right")
+
+                st.pyplot(fig_upload)
+
+                # Download predictions
+                csv_download = result_df.to_csv(index=False).encode("utf-8")
+
+                st.download_button(
+                    label="Download Predictions CSV",
+                    data=csv_download,
+                    file_name="predictions.csv",
+                    mime="text/csv"
+                )
+
+        except Exception as e:
+            st.error(f"Error processing file: {e}")
