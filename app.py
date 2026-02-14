@@ -325,17 +325,36 @@ with tab3:
         X_sample = X_test.sample(200, random_state=42)
 
         shap_values = explainer.shap_values(X_sample)
+        # Multiclass handling
+        if isinstance(shap_values, list):
 
-        # Let SHAP create its own figure
-        plt.figure()
-        shap.summary_plot(
-            shap_values,
-            X_sample,
-            plot_type="bar",
-            show=False
-        )
+            class_options = list(range(len(shap_values)))
 
-        st.pyplot(plt.gcf())
-        plt.clf()
+            class_index = st.selectbox(
+                "Select Class for SHAP Explanation",
+                class_options,
+                format_func=lambda x: CLASS_NAMES[x + 1]  # map 0→1 etc
+            )
+
+            plt.figure()
+            shap.summary_plot(
+                shap_values[class_index],
+                X_sample,
+                show=False
+            )
+
+            st.pyplot(plt.gcf())
+            plt.clf()
+
+        else:
+            plt.figure()
+            shap.summary_plot(
+                shap_values,
+                X_sample,
+                show=False
+            )
+            st.pyplot(plt.gcf())
+            plt.clf()
+
     else:
         st.info("Explainability not available for this model.")
