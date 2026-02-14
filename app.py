@@ -123,7 +123,15 @@ col6.metric("MCC", f"{mcc:.4f}")
 # -----------------------------
 st.subheader("Confusion Matrix")
 
-cm = confusion_matrix(y_test, y_pred)
+labels = np.unique(y_test)
+cm = confusion_matrix(y_test, y_pred, labels=labels)
+
+st.write("Raw Confusion Matrix:")
+st.write(cm)
+
+st.write("Unique classes in y_test:", np.unique(y_test))
+st.write("Unique classes in y_pred:", np.unique(y_pred))
+
 
 fig, ax = plt.subplots()
 sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax)
