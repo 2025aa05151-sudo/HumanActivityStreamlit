@@ -309,52 +309,116 @@ with tab3:
 
         st.pyplot(fig_imp)
 
-        st.markdown("---")
-        st.subheader("SHAP Explainability")
 
-        # Extract estimator from pipeline if needed
+        # -----------------------------
+        # SHAP
+        # -----------------------------
+
+        st.markdown("---")
+        st.subheader("Global Feature Impact (SHAP)")
+
+        # Extract estimator
         if hasattr(model, "named_steps"):
             estimator = model.named_steps["model"]
         else:
             estimator = model
 
-        # TreeExplainer
         explainer = shap.TreeExplainer(estimator)
 
-        # Sample for performance
         X_sample = X_test.sample(200, random_state=42)
-
         shap_values = explainer.shap_values(X_sample)
+
         # Multiclass handling
         if isinstance(shap_values, list):
 
-            class_options = list(range(len(shap_values)))
-
             class_index = st.selectbox(
-                "Select Class for SHAP Explanation",
-                class_options,
-                format_func=lambda x: CLASS_NAMES[x + 1]  # map 0→1 etc
+                "Select Activity to Explain",
+                list(range(len(shap_values))),
+                format_func=lambda x: CLASS_NAMES[x + 1]
             )
 
             plt.figure()
             shap.summary_plot(
                 shap_values[class_index],
                 X_sample,
+                plot_type="bar",
+                max_display=10,
                 show=False
             )
 
             st.pyplot(plt.gcf())
             plt.clf()
+
+            st.info(
+                f"""
+                This chart shows the **top features** influencing predictions 
+                for the activity **{CLASS_NAMES[class_index + 1]}**.
+
+                Larger bars = stronger influence on predicting this activity.
+                """
+            )
 
         else:
             plt.figure()
             shap.summary_plot(
                 shap_values,
                 X_sample,
+                plot_type="bar",
+                max_display=10,
                 show=False
             )
+
             st.pyplot(plt.gcf())
             plt.clf()
+
+
+        st.markdown("---")
+        st.subheader("Explain a Single Prediction")
+
+        sample_index = st.slider(
+            "Select Test Sample Index",
+            0,
+            len(X_test) - 1,
+            0
+        )
+
+        single_sample = X_test.iloc[[sample_index]]
+        predicted_class = y_pred[sample_index]
+
+        st.write(
+            f"Model Prediction: **{CLASS_NAMES[predicted_class]}**"
+        )
+
+        single_shap = explainer.shap_values(single_sample)
+
+        if isinstance(single_shap, list):
+            single_values = single_shap[predicted_class - 1]
+        else:
+            single_values = single_shap
+
+        plt.figure()
+        shap.force_plot(
+            explainer.expected_value[predicted_class - 1]
+            if isinstance(explainer.expected_value, list)
+            else explainer.expected_value,
+            single_values,
+            single_sample,
+            matplotlib=True,
+            show=False
+        )
+
+        st.pyplot(plt.gcf())
+        plt.clf()
+
+
+        st.write(
+            """
+            Red features push the prediction toward this activity.
+            Blue features push the prediction away.
+            The length of each bar shows strength of influence.
+            """
+        )
+
 
     else:
         st.info("Explainability not available for this model.")
