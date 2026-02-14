@@ -67,17 +67,11 @@ selected_model_name = st.selectbox(
 config = MODEL_CONFIG[selected_model_name]
 
 # Load model
-model = joblib.load(config["file"])
+model = joblib.load(config["model_path"])
 
-# Load scaler (always available but used conditionally)
+# Load scaler
 if config["needs_scaling"]:
     scaler = joblib.load("models/scaler.pkl")
-    X_input = scaler.transform(X_test)
-else:
-    X_input = X_test
-
-# Apply scaling if needed
-if config["needs_scaling"]:
     X_input = scaler.transform(X_test)
 else:
     X_input = X_test
@@ -86,7 +80,11 @@ else:
 # Predictions
 # -----------------------------
 y_pred = model.predict(X_input)
-y_prob = model.predict_proba(X_input)
+if hasattr(model, "predict_proba"):
+    y_prob = model.predict_proba(X_input)
+else:
+    y_prob = None
+
 
 classes = np.unique(y_test)
 y_test_bin = label_binarize(y_test, classes=classes)
@@ -111,12 +109,14 @@ auc = roc_auc_score(
 # -----------------------------
 st.subheader(f"Evaluation Metrics — {selected_model_name}")
 
-st.write(f"**Accuracy:** {accuracy:.4f}")
-st.write(f"**Precision (Macro):** {precision:.4f}")
-st.write(f"**Recall (Macro):** {recall:.4f}")
-st.write(f"**F1 Score (Macro):** {f1:.4f}")
-st.write(f"**AUC (OvR):** {auc:.4f}")
-st.write(f"**MCC:** {mcc:.4f}")
+col1, col2, col3, col4, col5, col6 = st.columns(6)
+
+col1.metric("Accuracy", f"{accuracy:.4f}")
+col2.metric("Precision", f"{precision:.4f}")
+col3.metric("Recall", f"{recall:.4f}")
+col4.metric("F1 Score", f"{f1:.4f}")
+col5.metric("AUC", f"{auc:.4f}")
+col6.metric("MCC", f"{mcc:.4f}")
 
 # -----------------------------
 # Confusion Matrix
