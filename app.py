@@ -371,7 +371,6 @@ with tab3:
             st.pyplot(plt.gcf())
             plt.clf()
 
-
         st.markdown("---")
         st.subheader("Explain a Single Prediction")
 
@@ -389,36 +388,40 @@ with tab3:
             f"Model Prediction: **{CLASS_NAMES[predicted_class]}**"
         )
 
-        # Compute SHAP values
-        single_shap_values = explainer.shap_values(single_sample)
+        # Compute SHAP values (modern API)
+        shap_values = explainer(single_sample)
 
-        if isinstance(single_shap_values, list):
-
-            class_idx = predicted_class - 1
-            shap_values_for_class = single_shap_values[class_idx]
-
-            expected_value = explainer.expected_value[class_idx]
-
+        # For multiclass, select predicted class
+        if len(shap_values.values.shape) == 3:
+            # shape: (1, features, classes)
+            class_index = predicted_class - 1
+            shap_explanation = shap.Explanation(
+                values=shap_values.values[0, :, class_index],
+                base_values=shap_values.base_values[0, class_index],
+                data=single_sample.iloc[0],
+                feature_names=X_test.columns
+            )
         else:
-            shap_values_for_class = single_shap_values
-            expected_value = explainer.expected_value
+            shap_explanation = shap.Explanation(
+                values=shap_values.values[0],
+                base_values=shap_values.base_values[0],
+                data=single_sample.iloc[0],
+                feature_names=X_test.columns
+            )
 
-        # Create waterfall plot (more stable than force plot)
+        # Plot clean waterfall
         plt.figure()
-        shap.plots._waterfall.waterfall_legacy(
-            expected_value,
-            shap_values_for_class[0],
-            feature_names=X_test.columns
-        )
+        shap.plots.waterfall(shap_explanation, show=False)
 
         st.pyplot(plt.gcf())
         plt.clf()
 
-        st.write(
+        st.info(
             """
             Red features push the prediction toward this activity.
-            Blue features push the prediction away.
-            The length of each bar shows strength of influence.
+            Blue features push it away.
+            The baseline value is the average model output.
+            The final value is the model’s prediction score.
             """
         )
 
