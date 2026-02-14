@@ -280,7 +280,7 @@ with tab2:
 with tab3:
 
     if selected_model_name in ["Decision Tree", "Random Forest", "XGBoost"]:
-
+        
         st.subheader("Feature Importance")
 
         # Extract underlying estimator if pipeline
@@ -307,5 +307,33 @@ with tab3:
 
         st.pyplot(fig_imp)
 
+        import shap
+
+        st.markdown("---")
+        st.subheader("SHAP Explainability")
+
+        # Extract estimator from pipeline if needed
+        if hasattr(model, "named_steps"):
+            estimator = model.named_steps["model"]
+        else:
+            estimator = model
+
+        # Use TreeExplainer
+        explainer = shap.TreeExplainer(estimator)
+
+        # Sample small subset for performance
+        X_sample = X_test.sample(200, random_state=42)
+
+        shap_values = explainer.shap_values(X_sample)
+
+        # Summary plot
+        fig_shap, ax_shap = plt.subplots()
+        shap.summary_plot(
+            shap_values,
+            X_sample,
+            show=False
+        )
+
+        st.pyplot(fig_shap)
     else:
         st.info("Explainability not available for this model.")
