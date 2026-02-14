@@ -160,6 +160,74 @@ metrics_all["Naive Bayes"] = {
 print("Naive Bayes trained.")
 
 # =========================================================
+# 5 Random Forest
+# =========================================================
+
+from sklearn.ensemble import RandomForestClassifier
+
+rf_model = RandomForestClassifier(
+    n_estimators=200,
+    max_depth=None,
+    random_state=42,
+    n_jobs=-1
+)
+
+rf_model.fit(X_train, y_train)
+dump(rf_model, "models/random_forest.pkl")
+
+y_pred_rf = rf_model.predict(X_test)
+y_prob_rf = rf_model.predict_proba(X_test)
+
+metrics_all["Random Forest"] = {
+    "Accuracy": accuracy_score(y_test, y_pred_rf),
+    "Precision": precision_score(y_test, y_pred_rf, average="macro"),
+    "Recall": recall_score(y_test, y_pred_rf, average="macro"),
+    "F1 Score": f1_score(y_test, y_pred_rf, average="macro"),
+    "AUC": roc_auc_score(y_test_bin, y_prob_rf, multi_class="ovr", average="macro"),
+    "MCC": matthews_corrcoef(y_test, y_pred_rf)
+}
+
+print("Random Forest trained.")
+
+# =========================================================
+# 6 XGBoost
+# =========================================================
+
+from xgboost import XGBClassifier
+
+# Adjust labels to start from 0
+y_train_xgb = y_train - 1
+y_test_xgb = y_test - 1
+
+xgb_model = XGBClassifier(
+    n_estimators=200,
+    learning_rate=0.1,
+    max_depth=6,
+    objective="multi:softprob",
+    num_class=6,
+    random_state=42,
+    use_label_encoder=False,
+    eval_metric="mlogloss"
+)
+
+xgb_model.fit(X_train, y_train_xgb)
+dump(xgb_model, "models/xgboost.pkl")
+
+y_pred_xgb = xgb_model.predict(X_test)
+y_prob_xgb = xgb_model.predict_proba(X_test)
+
+metrics_all["XGBoost"] = {
+    "Accuracy": accuracy_score(y_test_xgb, y_pred_xgb),
+    "Precision": precision_score(y_test_xgb, y_pred_xgb, average="macro"),
+    "Recall": recall_score(y_test_xgb, y_pred_xgb, average="macro"),
+    "F1 Score": f1_score(y_test_xgb, y_pred_xgb, average="macro"),
+    "AUC": roc_auc_score(y_test_bin, y_prob_xgb, multi_class="ovr", average="macro"),
+    "MCC": matthews_corrcoef(y_test_xgb, y_pred_xgb)
+}
+
+print("XGBoost trained.")
+
+# =========================================================
 # Save Metrics
 # =========================================================
 

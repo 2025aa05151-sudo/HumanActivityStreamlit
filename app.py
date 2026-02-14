@@ -25,20 +25,28 @@ st.write("Multiclass Classification Dashboard")
 # -----------------------------
 MODEL_CONFIG = {
     "Logistic Regression": {
-        "file": "models/logistic.pkl",
+        "model_path": "models/logistic_regression.pkl",
+        "needs_scaling": True
+    },
+    "KNN": {
+        "model_path": "models/knn.pkl",
         "needs_scaling": True
     },
     "Decision Tree": {
-        "file": "models/decision_tree.pkl",
+        "model_path": "models/decision_tree.pkl",
         "needs_scaling": False
     },
-    "KNN": {
-        "file": "models/knn.pkl",
-        "needs_scaling": True
-    },
     "Naive Bayes": {
-        "file": "models/naive_bayes.pkl",
-        "needs_scaling": True
+        "model_path": "models/naive_bayes.pkl",
+        "needs_scaling": False
+    },
+    "Random Forest": {
+        "model_path": "models/random_forest.pkl",
+        "needs_scaling": False
+    },
+    "XGBoost": {
+        "model_path": "models/xgboost.pkl",
+        "needs_scaling": False
     }
 }
 
@@ -62,7 +70,11 @@ config = MODEL_CONFIG[selected_model_name]
 model = joblib.load(config["file"])
 
 # Load scaler (always available but used conditionally)
-scaler = joblib.load("models/scaler.pkl")
+if config["needs_scaling"]:
+    scaler = joblib.load("models/scaler.pkl")
+    X_input = scaler.transform(X_test)
+else:
+    X_input = X_test
 
 # Apply scaling if needed
 if config["needs_scaling"]:
