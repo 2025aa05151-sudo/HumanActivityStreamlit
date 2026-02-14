@@ -80,14 +80,22 @@ else:
 # Predictions
 # -----------------------------
 y_pred = model.predict(X_input)
+
+if selected_model_name == "XGBoost":
+    y_pred = y_pred + 1
+
 if hasattr(model, "predict_proba"):
     y_prob = model.predict_proba(X_input)
 else:
     y_prob = None
 
-
-classes = np.unique(y_test)
-y_test_bin = label_binarize(y_test, classes=classes)
+if selected_model_name == "XGBoost":
+    y_test_adj = y_test - 1
+    classes = np.unique(y_test_adj)
+    y_test_bin = label_binarize(y_test_adj, classes=classes)
+else:
+    classes = np.unique(y_test)
+    y_test_bin = label_binarize(y_test, classes=classes)
 
 # -----------------------------
 # Metrics

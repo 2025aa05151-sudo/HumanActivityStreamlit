@@ -216,14 +216,24 @@ dump(xgb_model, "models/xgboost.pkl")
 y_pred_xgb = xgb_model.predict(X_test)
 y_prob_xgb = xgb_model.predict_proba(X_test)
 
+# Binarize adjusted labels for AUC
+classes_xgb = np.unique(y_test_xgb)
+y_test_bin_xgb = label_binarize(y_test_xgb, classes=classes_xgb)
+
 metrics_all["XGBoost"] = {
     "Accuracy": accuracy_score(y_test_xgb, y_pred_xgb),
     "Precision": precision_score(y_test_xgb, y_pred_xgb, average="macro"),
     "Recall": recall_score(y_test_xgb, y_pred_xgb, average="macro"),
     "F1 Score": f1_score(y_test_xgb, y_pred_xgb, average="macro"),
-    "AUC": roc_auc_score(y_test_bin, y_prob_xgb, multi_class="ovr", average="macro"),
+    "AUC": roc_auc_score(
+        y_test_bin_xgb,
+        y_prob_xgb,
+        multi_class="ovr",
+        average="macro"
+    ),
     "MCC": matthews_corrcoef(y_test_xgb, y_pred_xgb)
 }
+
 
 print("XGBoost trained.")
 
