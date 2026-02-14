@@ -35,6 +35,10 @@ MODEL_CONFIG = {
     "KNN": {
         "file": "models/knn.pkl",
         "needs_scaling": True
+    },
+    "Naive Bayes": {
+        "file": "models/naive_bayes.pkl",
+        "needs_scaling": True
     }
 }
 

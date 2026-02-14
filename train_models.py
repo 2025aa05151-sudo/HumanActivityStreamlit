@@ -132,6 +132,34 @@ metrics_all["KNN"] = {
 print("KNN trained with tuned k.")
 
 # =========================================================
+# 4 Gaussian Naive Bayes
+# =========================================================
+
+from sklearn.naive_bayes import GaussianNB
+
+nb_model = GaussianNB()
+
+# NB typically works fine with scaled data,
+# but scaling is not strictly required.
+# We'll use scaled data for consistency.
+nb_model.fit(X_train_scaled, y_train)
+dump(nb_model, "models/naive_bayes.pkl")
+
+y_pred_nb = nb_model.predict(X_test_scaled)
+y_prob_nb = nb_model.predict_proba(X_test_scaled)
+
+metrics_all["Naive Bayes"] = {
+    "Accuracy": accuracy_score(y_test, y_pred_nb),
+    "Precision": precision_score(y_test, y_pred_nb, average="macro"),
+    "Recall": recall_score(y_test, y_pred_nb, average="macro"),
+    "F1 Score": f1_score(y_test, y_pred_nb, average="macro"),
+    "AUC": roc_auc_score(y_test_bin, y_prob_nb, multi_class="ovr", average="macro"),
+    "MCC": matthews_corrcoef(y_test, y_pred_nb)
+}
+
+print("Naive Bayes trained.")
+
+# =========================================================
 # Save Metrics
 # =========================================================
 
