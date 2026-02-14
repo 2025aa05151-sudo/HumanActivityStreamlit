@@ -133,9 +133,9 @@ st.write("Unique classes in y_test:", np.unique(y_test))
 st.write("Unique classes in y_pred:", np.unique(y_pred))
 
 
-fig, ax = plt.subplots()
-sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax)
-ax.set_xlabel("Predicted")
-ax.set_ylabel("Actual")
+# fig, ax = plt.subplots()
+# sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax)
+# ax.set_xlabel("Predicted")
+# ax.set_ylabel("Actual")
 
-st.pyplot(fig)
+# st.pyplot(fig)
