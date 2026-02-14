@@ -283,7 +283,13 @@ with tab3:
 
         st.subheader("Feature Importance")
 
-        importances = model.feature_importances_
+        # Extract underlying estimator if pipeline
+        if hasattr(model, "named_steps"):
+            estimator = model.named_steps["model"]
+        else:
+            estimator = model
+
+        importances = estimator.feature_importances_
         feature_names = X_test.columns
 
         importance_df = pd.DataFrame({
