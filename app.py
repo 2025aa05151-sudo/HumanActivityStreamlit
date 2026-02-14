@@ -25,7 +25,7 @@ st.write("Multiclass Classification Dashboard")
 # -----------------------------
 MODEL_CONFIG = {
     "Logistic Regression": {
-        "model_path": "models/logistic_regression.pkl",
+        "model_path": "models/logistic.pkl",
         "needs_scaling": True
     },
     "KNN": {
