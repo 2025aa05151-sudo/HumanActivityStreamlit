@@ -31,6 +31,10 @@ MODEL_CONFIG = {
     "Decision Tree": {
         "file": "models/decision_tree.pkl",
         "needs_scaling": False
+    },
+    "KNN": {
+        "file": "models/knn.pkl",
+        "needs_scaling": True
     }
 }
 

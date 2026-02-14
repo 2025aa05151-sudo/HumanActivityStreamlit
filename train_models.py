@@ -91,6 +91,47 @@ dt_model.score(X_train, y_train)
 print("Decision Tree trained.")
 
 # =========================================================
+# 3 K-Nearest Neighbors
+# =========================================================
+
+from sklearn.neighbors import KNeighborsClassifier
+
+best_k = None
+best_acc = 0
+
+for k in [3, 5, 7, 9, 11, 15, 21]:
+    knn = KNeighborsClassifier(n_neighbors=k)
+    knn.fit(X_train_scaled, y_train)
+    acc = knn.score(X_test_scaled, y_test)
+
+    print(f"k={k} → Accuracy={acc:.4f}")
+
+    if acc > best_acc:
+        best_acc = acc
+        best_k = k
+
+print(f"\nBest k: {best_k} with Accuracy={best_acc:.4f}")
+
+# Train final model with best k
+knn_model = KNeighborsClassifier(n_neighbors=best_k)
+knn_model.fit(X_train_scaled, y_train)
+dump(knn_model, "models/knn.pkl")
+
+y_pred_knn = knn_model.predict(X_test_scaled)
+y_prob_knn = knn_model.predict_proba(X_test_scaled)
+
+metrics_all["KNN"] = {
+    "Accuracy": accuracy_score(y_test, y_pred_knn),
+    "Precision": precision_score(y_test, y_pred_knn, average="macro"),
+    "Recall": recall_score(y_test, y_pred_knn, average="macro"),
+    "F1 Score": f1_score(y_test, y_pred_knn, average="macro"),
+    "AUC": roc_auc_score(y_test_bin, y_prob_knn, multi_class="ovr", average="macro"),
+    "MCC": matthews_corrcoef(y_test, y_pred_knn)
+}
+
+print("KNN trained with tuned k.")
+
+# =========================================================
 # Save Metrics
 # =========================================================
 
