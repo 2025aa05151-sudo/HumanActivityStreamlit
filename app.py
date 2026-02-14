@@ -389,27 +389,30 @@ with tab3:
             f"Model Prediction: **{CLASS_NAMES[predicted_class]}**"
         )
 
-        single_shap = explainer.shap_values(single_sample)
+        # Compute SHAP values
+        single_shap_values = explainer.shap_values(single_sample)
 
-        if isinstance(single_shap, list):
-            single_values = single_shap[predicted_class - 1]
+        if isinstance(single_shap_values, list):
+
+            class_idx = predicted_class - 1
+            shap_values_for_class = single_shap_values[class_idx]
+
+            expected_value = explainer.expected_value[class_idx]
+
         else:
-            single_values = single_shap
+            shap_values_for_class = single_shap_values
+            expected_value = explainer.expected_value
 
+        # Create waterfall plot (more stable than force plot)
         plt.figure()
-        shap.force_plot(
-            explainer.expected_value[predicted_class - 1]
-            if isinstance(explainer.expected_value, list)
-            else explainer.expected_value,
-            single_values,
-            single_sample,
-            matplotlib=True,
-            show=False
+        shap.plots._waterfall.waterfall_legacy(
+            expected_value,
+            shap_values_for_class[0],
+            feature_names=X_test.columns
         )
 
         st.pyplot(plt.gcf())
         plt.clf()
-
 
         st.write(
             """
