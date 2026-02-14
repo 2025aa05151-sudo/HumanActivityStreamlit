@@ -143,9 +143,6 @@ nb_model = GaussianNB(var_smoothing=1e-6)
 # but scaling is not strictly required.
 # We'll use scaled data for consistency.
 nb_model.fit(X_train, y_train)
-
-print("Class priors:", nb_model.class_prior_)
-
 dump(nb_model, "models/naive_bayes.pkl")
 
 y_pred_nb = nb_model.predict(X_test)
