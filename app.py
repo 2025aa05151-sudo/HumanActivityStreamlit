@@ -126,16 +126,21 @@ st.subheader("Confusion Matrix")
 labels = np.unique(y_test)
 cm = confusion_matrix(y_test, y_pred, labels=labels)
 
+st.write("Labels order:", labels)
 st.write("Raw Confusion Matrix:")
 st.write(cm)
 
-st.write("Unique classes in y_test:", np.unique(y_test))
-st.write("Unique classes in y_pred:", np.unique(y_pred))
+fig, ax = plt.subplots()
+sns.heatmap(
+    cm,
+    annot=True,
+    fmt="d",
+    cmap="Blues",
+    xticklabels=labels,
+    yticklabels=labels,
+    ax=ax
+)
+ax.set_xlabel("Predicted")
+ax.set_ylabel("Actual")
 
-
-# fig, ax = plt.subplots()
-# sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax)
-# ax.set_xlabel("Predicted")
-# ax.set_ylabel("Actual")
-
-# st.pyplot(fig)
+st.pyplot(fig)
