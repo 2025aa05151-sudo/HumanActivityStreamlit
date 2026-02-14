@@ -163,6 +163,88 @@ plt.yticks(rotation=0)
 
 st.pyplot(fig)
 
+
+# -----------------------------
+# Most Confused Class Pair
+# -----------------------------
+cm_no_diag = cm.copy()
+np.fill_diagonal(cm_no_diag, 0)
+
+max_confusion = np.unravel_index(
+    np.argmax(cm_no_diag),
+    cm_no_diag.shape
+)
+
+actual_idx, pred_idx = max_confusion
+
+actual_class = CLASS_NAMES[labels[actual_idx]]
+pred_class = CLASS_NAMES[labels[pred_idx]]
+
+st.info(
+    f"Most confused: **{actual_class}** → predicted as **{pred_class}** "
+    f"({cm_no_diag[actual_idx, pred_idx]} times)"
+)
+
+
+# -----------------------------
+# Per-Class Metrics
+# -----------------------------
+from sklearn.metrics import classification_report
+
+st.subheader("Per-Class Metrics")
+
+report_dict = classification_report(
+    y_test,
+    y_pred,
+    output_dict=True
+)
+
+report_df = pd.DataFrame(report_dict).T
+
+# Remove overall rows
+report_df = report_df.loc[
+    ~report_df.index.isin(["accuracy", "macro avg", "weighted avg"])
+]
+
+# Replace numeric class labels with names
+report_df.index = [
+    CLASS_NAMES[int(i)] for i in report_df.index
+]
+
+st.dataframe(report_df.style.format("{:.4f}"))
+
+# -----------------------------
+# ROC Curves
+# -----------------------------
+if y_prob is not None:
+
+    st.subheader("ROC Curves (One-vs-Rest)")
+
+    from sklearn.metrics import roc_curve, auc
+
+    y_test_bin = label_binarize(y_test, classes=labels)
+
+    fig_roc, ax_roc = plt.subplots(figsize=(8, 6))
+
+    for i, label in enumerate(labels):
+        fpr, tpr, _ = roc_curve(y_test_bin[:, i], y_prob[:, i])
+        roc_auc = auc(fpr, tpr)
+
+        ax_roc.plot(
+            fpr,
+            tpr,
+            label=f"{CLASS_NAMES[label]} (AUC = {roc_auc:.3f})"
+        )
+
+    ax_roc.plot([0, 1], [0, 1], linestyle="--")
+
+    ax_roc.set_xlabel("False Positive Rate")
+    ax_roc.set_ylabel("True Positive Rate")
+    ax_roc.legend()
+
+    st.pyplot(fig_roc)
+
+
 # -----------------------------
 # Prediction Distribution
 # -----------------------------
