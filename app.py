@@ -129,6 +129,7 @@ cm = confusion_matrix(y_test, y_pred, labels=labels)
 st.write("Labels order:", labels)
 st.write("Raw Confusion Matrix:")
 st.write(cm)
+st.write("Prediction distribution:", np.unique(y_pred, return_counts=True))
 
 fig, ax = plt.subplots()
 sns.heatmap(
