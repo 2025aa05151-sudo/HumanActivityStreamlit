@@ -39,6 +39,19 @@ X_test = pd.read_csv("data/X_test_selected.csv")
 y_test = pd.read_csv("data/y_test.csv").values.ravel()
 
 # -----------------------------
+# Model Leaderboard
+# -----------------------------
+st.subheader("Model Comparison")
+
+with open("models/all_metrics.json") as f:
+    all_metrics = json.load(f)
+
+df_metrics = pd.DataFrame(all_metrics).T
+df_metrics = df_metrics.sort_values("Accuracy", ascending=False)
+
+st.dataframe(df_metrics.style.format("{:.4f}"))
+
+# -----------------------------
 # Model Selection
 # -----------------------------
 selected_model_name = st.selectbox(
@@ -130,3 +143,46 @@ ax.set_xlabel("Predicted")
 ax.set_ylabel("Actual")
 
 st.pyplot(fig)
+
+# -----------------------------
+# Prediction Distribution
+# -----------------------------
+st.subheader("Prediction Distribution")
+
+pred_counts = pd.Series(y_pred).value_counts().sort_index()
+
+fig3, ax3 = plt.subplots()
+pred_counts.plot(kind="bar", ax=ax3)
+
+ax3.set_xlabel("Predicted Class")
+ax3.set_ylabel("Count")
+
+st.pyplot(fig3)
+
+# -----------------------------
+# Feature Importance
+# -----------------------------
+if selected_model_name in ["Decision Tree", "Random Forest", "XGBoost"]:
+    st.subheader("Feature Importance")
+
+    if selected_model_name == "XGBoost":
+        importances = model.feature_importances_
+    else:
+        importances = model.feature_importances_
+
+    feature_names = X_test.columns
+
+    importance_df = pd.DataFrame({
+        "Feature": feature_names,
+        "Importance": importances
+    }).sort_values("Importance", ascending=False).head(15)
+
+    fig2, ax2 = plt.subplots()
+    sns.barplot(
+        data=importance_df,
+        x="Importance",
+        y="Feature",
+        ax=ax2
+    )
+
+    st.pyplot(fig2)
