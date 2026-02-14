@@ -89,6 +89,11 @@ if hasattr(model, "predict_proba"):
 else:
     y_prob = None
 
+
+if selected_model_name == "Naive Bayes":
+    st.write("Sample probabilities (first 5 rows):")
+    st.write(y_prob[:5])
+
 if selected_model_name == "XGBoost":
     y_test_adj = y_test - 1
     classes = np.unique(y_test_adj)
