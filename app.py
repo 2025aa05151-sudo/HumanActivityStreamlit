@@ -24,30 +24,12 @@ st.write("Multiclass Classification Dashboard")
 # Model Configuration
 # -----------------------------
 MODEL_CONFIG = {
-    "Logistic Regression": {
-        "model_path": "models/logistic.pkl",
-        "needs_scaling": True
-    },
-    "KNN": {
-        "model_path": "models/knn.pkl",
-        "needs_scaling": True
-    },
-    "Decision Tree": {
-        "model_path": "models/decision_tree.pkl",
-        "needs_scaling": False
-    },
-    "Naive Bayes": {
-        "model_path": "models/naive_bayes.pkl",
-        "needs_scaling": False
-    },
-    "Random Forest": {
-        "model_path": "models/random_forest.pkl",
-        "needs_scaling": False
-    },
-    "XGBoost": {
-        "model_path": "models/xgboost.pkl",
-        "needs_scaling": False
-    }
+    "Logistic Regression": "models/logistic.pkl",
+    "KNN": "models/knn.pkl",
+    "Decision Tree": "models/decision_tree.pkl",
+    "Naive Bayes": "models/naive_bayes.pkl",
+    "Random Forest": "models/random_forest.pkl",
+    "XGBoost": "models/xgboost.pkl"
 }
 
 # -----------------------------
@@ -64,38 +46,21 @@ selected_model_name = st.selectbox(
     list(MODEL_CONFIG.keys())
 )
 
-config = MODEL_CONFIG[selected_model_name]
-
-# Load model
-model = joblib.load(config["model_path"])
-
-# Load scaler
-if config["needs_scaling"]:
-    scaler = joblib.load("models/scaler.pkl")
-    X_input = scaler.transform(X_test)
-else:
-    X_input = X_test
+model_path = MODEL_CONFIG[selected_model_name]
+model = joblib.load(model_path)
 
 # -----------------------------
 # Predictions
 # -----------------------------
-y_pred = model.predict(X_input)
-
-if selected_model_name == "XGBoost":
-    y_pred = y_pred + 1
+y_pred = model.predict(X_test)
 
 if hasattr(model, "predict_proba"):
-    y_prob = model.predict_proba(X_input)
+    y_prob = model.predict_proba(X_test)
 else:
     y_prob = None
 
-if selected_model_name == "XGBoost":
-    y_test_adj = y_test - 1
-    classes = np.unique(y_test_adj)
-    y_test_bin = label_binarize(y_test_adj, classes=classes)
-else:
-    classes = np.unique(y_test)
-    y_test_bin = label_binarize(y_test, classes=classes)
+classes = np.unique(y_test)
+y_test_bin = label_binarize(y_test, classes=classes)
 
 # -----------------------------
 # Metrics
@@ -105,12 +70,15 @@ precision = precision_score(y_test, y_pred, average="macro")
 recall = recall_score(y_test, y_pred, average="macro")
 f1 = f1_score(y_test, y_pred, average="macro")
 mcc = matthews_corrcoef(y_test, y_pred)
-auc = roc_auc_score(
-    y_test_bin,
-    y_prob,
-    multi_class="ovr",
-    average="macro"
-)
+
+auc = None
+if y_prob is not None:
+    auc = roc_auc_score(
+        y_test_bin,
+        y_prob,
+        multi_class="ovr",
+        average="macro"
+    )
 
 # -----------------------------
 # Display Metrics
@@ -123,7 +91,12 @@ col1.metric("Accuracy", f"{accuracy:.4f}")
 col2.metric("Precision", f"{precision:.4f}")
 col3.metric("Recall", f"{recall:.4f}")
 col4.metric("F1 Score", f"{f1:.4f}")
-col5.metric("AUC", f"{auc:.4f}")
+
+if auc is not None:
+    col5.metric("AUC", f"{auc:.4f}")
+else:
+    col5.metric("AUC", "N/A")
+
 col6.metric("MCC", f"{mcc:.4f}")
 
 # -----------------------------
@@ -144,6 +117,7 @@ sns.heatmap(
     yticklabels=labels,
     ax=ax
 )
+
 ax.set_xlabel("Predicted")
 ax.set_ylabel("Actual")
 

@@ -35,18 +35,19 @@ metrics_all = {}
 # 1 Logistic Regression
 # =========================================================
 
-scaler = StandardScaler()
-X_train_scaled = scaler.fit_transform(X_train)
-X_test_scaled = scaler.transform(X_test)
 
-dump(scaler, "models/scaler.pkl")
+from sklearn.pipeline import Pipeline
 
-log_model = LogisticRegression(max_iter=1000, random_state=42)
-log_model.fit(X_train_scaled, y_train)
-dump(log_model, "models/logistic.pkl")
+log_pipeline = Pipeline([
+    ("scaler", StandardScaler()),
+    ("model", LogisticRegression(max_iter=1000, random_state=42))
+])
 
-y_pred = log_model.predict(X_test_scaled)
-y_prob = log_model.predict_proba(X_test_scaled)
+log_pipeline.fit(X_train, y_train)
+dump(log_pipeline, "models/logistic.pkl")
+
+y_pred = log_pipeline.predict(X_test)
+y_prob = log_pipeline.predict_proba(X_test)
 
 classes = np.unique(y_test)
 y_test_bin = label_binarize(y_test, classes=classes)
@@ -59,24 +60,24 @@ metrics_all["Logistic Regression"] = {
     "AUC": roc_auc_score(y_test_bin, y_prob, multi_class="ovr", average="macro"),
     "MCC": matthews_corrcoef(y_test, y_pred)
 }
-log_model.score(X_train_scaled, y_train)
+log_pipeline.score(X_train, y_train)
 
 print("Logistic Regression trained.")
 
 # =========================================================
 # 2 Decision Tree
 # =========================================================
-
-dt_model = DecisionTreeClassifier(
+dt_pipeline = Pipeline([
+    ("model", DecisionTreeClassifier(
     random_state=42,
     max_depth=10 # used none, it had high variance. using 10 has reduced overfitting.
-)
+    ))
+])
+dt_pipeline.fit(X_train, y_train)
+dump(dt_pipeline, "models/decision_tree.pkl")
 
-dt_model.fit(X_train, y_train)
-dump(dt_model, "models/decision_tree.pkl")
-
-y_pred_dt = dt_model.predict(X_test)
-y_prob_dt = dt_model.predict_proba(X_test)
+y_pred_dt = dt_pipeline.predict(X_test)
+y_prob_dt = dt_pipeline.predict_proba(X_test)
 
 metrics_all["Decision Tree"] = {
     "Accuracy": accuracy_score(y_test, y_pred_dt),
@@ -86,7 +87,7 @@ metrics_all["Decision Tree"] = {
     "AUC": roc_auc_score(y_test_bin, y_prob_dt, multi_class="ovr", average="macro"),
     "MCC": matthews_corrcoef(y_test, y_pred_dt)
 }
-dt_model.score(X_train, y_train)
+dt_pipeline.score(X_train, y_train)
 
 print("Decision Tree trained.")
 
@@ -100,9 +101,12 @@ best_k = None
 best_acc = 0
 
 for k in [3, 5, 7, 9, 11, 15, 21]:
-    knn = KNeighborsClassifier(n_neighbors=k)
-    knn.fit(X_train_scaled, y_train)
-    acc = knn.score(X_test_scaled, y_test)
+    knn_pipeline = Pipeline([
+        ("scaler", StandardScaler()),
+        ("model", KNeighborsClassifier(n_neighbors=k))
+    ])
+    knn_pipeline.fit(X_train, y_train)
+    acc = knn_pipeline.score(X_test, y_test)
 
     print(f"k={k} → Accuracy={acc:.4f}")
 
@@ -113,12 +117,17 @@ for k in [3, 5, 7, 9, 11, 15, 21]:
 print(f"\nBest k: {best_k} with Accuracy={best_acc:.4f}")
 
 # Train final model with best k
-knn_model = KNeighborsClassifier(n_neighbors=best_k)
-knn_model.fit(X_train_scaled, y_train)
-dump(knn_model, "models/knn.pkl")
 
-y_pred_knn = knn_model.predict(X_test_scaled)
-y_prob_knn = knn_model.predict_proba(X_test_scaled)
+knn_pipeline = Pipeline([
+    ("scaler", StandardScaler()),
+    ("model", KNeighborsClassifier(n_neighbors=best_k))
+])
+
+knn_pipeline.fit(X_train, y_train)
+dump(knn_pipeline, "models/knn.pkl")
+
+y_pred_knn = knn_pipeline.predict(X_test)
+y_prob_knn = knn_pipeline.predict_proba(X_test)
 
 metrics_all["KNN"] = {
     "Accuracy": accuracy_score(y_test, y_pred_knn),
