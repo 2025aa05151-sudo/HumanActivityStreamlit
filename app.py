@@ -39,6 +39,18 @@ X_test = pd.read_csv("data/X_test_selected.csv")
 y_test = pd.read_csv("data/y_test.csv").values.ravel()
 
 # -----------------------------
+# Class Label Mapping
+# -----------------------------
+CLASS_NAMES = {
+    1: "Walking",
+    2: "Walking Upstairs",
+    3: "Walking Downstairs",
+    4: "Sitting",
+    5: "Standing",
+    6: "Laying"
+}
+
+# -----------------------------
 # Model Leaderboard
 # -----------------------------
 st.subheader("Model Comparison")
@@ -120,27 +132,34 @@ else:
 
 col6.metric("MCC", f"{mcc:.4f}")
 
+
 # -----------------------------
 # Confusion Matrix
 # -----------------------------
 st.subheader("Confusion Matrix")
 
 labels = np.unique(y_test)
+label_names = [CLASS_NAMES[l] for l in labels]
+
 cm = confusion_matrix(y_test, y_pred, labels=labels)
 
-fig, ax = plt.subplots()
+fig, ax = plt.subplots(figsize=(8, 6))
+
 sns.heatmap(
     cm,
     annot=True,
     fmt="d",
     cmap="Blues",
-    xticklabels=labels,
-    yticklabels=labels,
+    xticklabels=label_names,
+    yticklabels=label_names,
     ax=ax
 )
 
 ax.set_xlabel("Predicted")
 ax.set_ylabel("Actual")
+
+plt.xticks(rotation=45, ha="right")
+plt.yticks(rotation=0)
 
 st.pyplot(fig)
 
@@ -151,13 +170,18 @@ st.subheader("Prediction Distribution")
 
 pred_counts = pd.Series(y_pred).value_counts().sort_index()
 
-fig3, ax3 = plt.subplots()
-pred_counts.plot(kind="bar", ax=ax3)
+pred_counts.index = [CLASS_NAMES[i] for i in pred_counts.index]
 
-ax3.set_xlabel("Predicted Class")
-ax3.set_ylabel("Count")
+fig2, ax2 = plt.subplots(figsize=(8, 5))
 
-st.pyplot(fig3)
+pred_counts.plot(kind="bar", ax=ax2)
+
+ax2.set_xlabel("Predicted Activity")
+ax2.set_ylabel("Count")
+
+plt.xticks(rotation=45, ha="right")
+
+st.pyplot(fig2)
 
 # -----------------------------
 # Feature Importance
@@ -177,12 +201,12 @@ if selected_model_name in ["Decision Tree", "Random Forest", "XGBoost"]:
         "Importance": importances
     }).sort_values("Importance", ascending=False).head(15)
 
-    fig2, ax2 = plt.subplots()
+    fig3, ax3 = plt.subplots()
     sns.barplot(
         data=importance_df,
         x="Importance",
         y="Feature",
-        ax=ax2
+        ax=ax3
     )
 
-    st.pyplot(fig2)
+    st.pyplot(fig3)
