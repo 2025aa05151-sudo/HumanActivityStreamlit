@@ -120,7 +120,8 @@ with tab1:
         all_metrics = json.load(f)
 
     df_metrics = pd.DataFrame(all_metrics).T
-    df_metrics = df_metrics.sort_values("Accuracy", ascending=False)
+    df_metrics = df_metrics.sort_values("Test Accuracy", ascending=False)
+
 
     best_model = df_metrics.index[0]
     st.success(f"Best Model (by Accuracy): {best_model}")
