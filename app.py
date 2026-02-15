@@ -152,28 +152,44 @@ with tab2:
     else:
         st.subheader("Upload Your Test Dataset for Evaluation")
 
-        # ============================
-        # DOWNLOAD SAMPLE TEST FILE
-        # ============================
-        st.markdown("### Download Sample Compatible Test Dataset")
+        # =====================================
+        # CONFIGURABLE SAMPLE DOWNLOAD SECTION
+        # =====================================
+        st.markdown("### Download Compatible Test Dataset")
 
-        sample_df = X_test.copy()
-        sample_df["target"] = y_test
+        max_rows = len(X_test)
+
+        sample_size = st.slider(
+            "Select number of rows for sample dataset",
+            min_value=10,
+            max_value=max_rows,
+            value=min(200, max_rows),
+            step=10
+        )
+
+        # Sample data
+        sampled_indices = X_test.sample(
+            n=sample_size,
+            random_state=42
+        ).index
+
+        sample_df = X_test.loc[sampled_indices].copy()
+        sample_df["target"] = y_test[sampled_indices]
 
         csv_download = sample_df.to_csv(index=False).encode("utf-8")
 
         st.download_button(
-            label="Download Sample Test Dataset (with target)",
+            label=f"Download Sample Test Dataset ({sample_size} rows)",
             data=csv_download,
-            file_name="sample_test_dataset.csv",
+            file_name=f"sample_test_dataset_{sample_size}.csv",
             mime="text/csv",
         )
 
         st.markdown("---")
 
-        # ============================
+        # =====================================
         # FILE UPLOADER
-        # ============================
+        # =====================================
         uploaded_eval_file = st.file_uploader(
             "Upload CSV containing top 30 features + target",
             type="csv"
@@ -188,7 +204,7 @@ with tab2:
                 X_upload = df_upload_eval.drop(columns=['target'])
                 y_upload = df_upload_eval['target'].values
 
-                # Check exact column match
+                # Strict column order check
                 if list(X_upload.columns) != list(X_test.columns):
                     st.error(
                         "Uploaded CSV columns must match training features EXACTLY.\n"
@@ -215,9 +231,14 @@ with tab2:
                     mcc = matthews_corrcoef(y_upload, y_pred_upload)
 
                     if y_prob_upload is not None:
-                        y_upload_bin = label_binarize(y_upload, classes=np.unique(y_upload))
+                        y_upload_bin = label_binarize(
+                            y_upload,
+                            classes=np.unique(y_upload)
+                        )
                         auc_val = roc_auc_score(
-                            y_upload_bin, y_prob_upload, average='weighted'
+                            y_upload_bin,
+                            y_prob_upload,
+                            average='weighted'
                         )
                     else:
                         auc_val = None
@@ -250,6 +271,7 @@ with tab2:
                     ax2.set_xlabel("Predicted")
                     ax2.set_ylabel("Actual")
                     st.pyplot(fig2)
+
 
 # =========================================================
 # TAB 3 — Explainability
