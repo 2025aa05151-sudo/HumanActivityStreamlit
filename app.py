@@ -3,25 +3,24 @@ import pandas as pd
 import numpy as np
 import joblib
 import json
-import shap
-
 from sklearn.metrics import (
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
+    matthews_corrcoef,
+    roc_auc_score,
     confusion_matrix,
-    classification_report
 )
 from sklearn.preprocessing import label_binarize
-from sklearn.metrics import roc_curve, auc
-
 import matplotlib.pyplot as plt
 import seaborn as sns
-
 
 # =========================================================
 # App Header
 # =========================================================
 st.title("Human Activity Recognition")
 st.write("Multiclass Classification Dashboard")
-
 
 # =========================================================
 # Model Configuration
@@ -35,13 +34,11 @@ MODEL_CONFIG = {
     "XGBoost": "models/xgboost.pkl"
 }
 
-
 # =========================================================
-# Load Data
+# Load Internal Test Data
 # =========================================================
 X_test = pd.read_csv("data/X_test_selected.csv")
 y_test = pd.read_csv("data/y_test.csv").values.ravel()
-
 
 # =========================================================
 # Load Stored Metrics
@@ -50,7 +47,6 @@ with open("models/all_metrics.json") as f:
     all_metrics = json.load(f)
 
 df_metrics = pd.DataFrame(all_metrics).T
-
 
 # =========================================================
 # Class Labels
@@ -64,16 +60,12 @@ CLASS_NAMES = {
     6: "Laying"
 }
 
-
 # =========================================================
 # GLOBAL MODEL SELECTION
 # =========================================================
 selected_model_name = st.selectbox(
-    "Choose Model",
-    list(MODEL_CONFIG.keys()),
-    key="model_selector"
+    "Choose Model", list(MODEL_CONFIG.keys()), key="model_selector"
 )
-
 model_path = MODEL_CONFIG[selected_model_name]
 loaded = joblib.load(model_path)
 
@@ -82,135 +74,150 @@ if selected_model_name == "XGBoost":
 else:
     model = loaded
 
-
-# =========================================================
-# GLOBAL PREDICTIONS (FOR TEST SET)
-# =========================================================
-y_pred = model.predict(X_test)
-
+# Precompute internal test predictions
+y_pred_internal = model.predict(X_test)
 if selected_model_name == "XGBoost":
-    y_pred = le.inverse_transform(y_pred)
+    y_pred_internal = le.inverse_transform(y_pred_internal)
 
 if hasattr(model, "predict_proba"):
-    y_prob = model.predict_proba(X_test)
+    y_prob_internal = model.predict_proba(X_test)
 else:
-    y_prob = None
-
-labels = np.unique(y_test)
-y_test_bin = label_binarize(y_test, classes=labels)
-
+    y_prob_internal = None
 
 # =========================================================
-# Tabs Layout
+# Tabs
 # =========================================================
 tab1, tab2, tab3, tab4 = st.tabs([
-    "Overview",
-    "Evaluation",
-    "Explainability",
-    "Upload & Predict"
+    "Overview", "Evaluation", "Explainability", "Upload & Predict"
 ])
-
 
 # =========================================================
 # TAB 1 — Overview
 # =========================================================
 with tab1:
-
     st.subheader("Model Comparison")
-
     df_sorted = df_metrics.sort_values("Test Accuracy", ascending=False)
-
     best_model = df_sorted.index[0]
     st.success(f"Best Model (by Test Accuracy): {best_model}")
-
     st.dataframe(df_sorted.style.format("{:.4f}"))
-
 
 # =========================================================
 # TAB 2 — Evaluation
 # =========================================================
 with tab2:
-
     st.markdown(f"## Evaluation — {selected_model_name}")
 
     evaluation_mode = st.radio(
         "Select Evaluation Mode",
-        ["Test Set Performance", "Cross-Validation Performance"],
+        ["Internal Test Set", "Uploaded Test Set"],
         horizontal=True
     )
 
-    selected_metrics = df_metrics.loc[selected_model_name]
-
     st.markdown("---")
 
-    # =====================================================
-    # TEST SET PERFORMANCE
-    # =====================================================
-    if evaluation_mode == "Test Set Performance":
+    # -------------------------------
+    # INTERNAL TEST METRICS
+    # -------------------------------
+    if evaluation_mode == "Internal Test Set":
+        st.subheader("Internal Test Set Metrics")
 
+        metrics = df_metrics.loc[selected_model_name]
         col1, col2, col3, col4, col5, col6 = st.columns(6)
-
-        col1.metric("Accuracy", f"{selected_metrics['Test Accuracy']:.4f}")
-        col2.metric("Precision", f"{selected_metrics['Precision']:.4f}")
-        col3.metric("Recall", f"{selected_metrics['Recall']:.4f}")
-        col4.metric("F1 Score", f"{selected_metrics['F1 Score']:.4f}")
-        col5.metric("AUC", f"{selected_metrics['AUC']:.4f}")
-        col6.metric("MCC", f"{selected_metrics['MCC']:.4f}")
+        col1.metric("Accuracy", f"{metrics['Test Accuracy']:.4f}")
+        col2.metric("Precision", f"{metrics['Precision']:.4f}")
+        col3.metric("Recall", f"{metrics['Recall']:.4f}")
+        col4.metric("F1 Score", f"{metrics['F1 Score']:.4f}")
+        col5.metric("AUC", f"{metrics['AUC']:.4f}")
+        col6.metric("MCC", f"{metrics['MCC']:.4f}")
 
         st.markdown("---")
+        st.subheader("Confusion Matrix (Internal Test)")
 
-        # -----------------------------
-        # Confusion Matrix
-        # -----------------------------
-        st.subheader("Confusion Matrix")
-
+        labels = np.unique(y_test)
         label_names = [CLASS_NAMES[l] for l in labels]
-        cm = confusion_matrix(y_test, y_pred, labels=labels)
+        cm = confusion_matrix(y_test, y_pred_internal, labels=labels)
 
         fig_cm, ax_cm = plt.subplots(figsize=(8, 6))
         sns.heatmap(
-            cm,
-            annot=True,
-            fmt="d",
-            cmap="Blues",
-            xticklabels=label_names,
-            yticklabels=label_names,
-            ax=ax_cm
+            cm, annot=True, fmt="d", cmap="Blues",
+            xticklabels=label_names, yticklabels=label_names, ax=ax_cm
         )
-
         ax_cm.set_xlabel("Predicted")
         ax_cm.set_ylabel("Actual")
-        plt.xticks(rotation=45, ha="right")
-        plt.yticks(rotation=0)
-
         st.pyplot(fig_cm)
 
-    # =====================================================
-    # CROSS VALIDATION PERFORMANCE
-    # =====================================================
+    # -------------------------------
+    # UPLOADED TEST METRICS
+    # -------------------------------
     else:
-
-        col1, col2, col3, col4 = st.columns(4)
-
-        col1.metric("CV Accuracy (Mean)", f"{selected_metrics['CV Accuracy Mean']:.4f}")
-        col2.metric("CV Accuracy (Std)", f"{selected_metrics['CV Accuracy Std']:.4f}")
-        col3.metric("CV F1 (Mean)", f"{selected_metrics['CV F1 Mean']:.4f}")
-        col4.metric("CV F1 (Std)", f"{selected_metrics['CV F1 Std']:.4f}")
-
-        st.info(
-            "Cross-validation metrics reflect model stability across 5 stratified folds."
+        st.subheader("Upload Your Test Dataset for Evaluation")
+        uploaded_eval_file = st.file_uploader(
+            "Upload CSV containing features + target",
+            type="csv"
         )
 
+        if uploaded_eval_file is not None:
+            df_upload_eval = pd.read_csv(uploaded_eval_file)
+
+            if 'target' not in df_upload_eval.columns:
+                st.error("Uploaded file must contain a 'target' column.")
+            else:
+                X_upload = df_upload_eval.drop(columns=['target'])
+                y_upload = df_upload_eval['target'].values
+
+                if set(X_upload.columns) != set(X_test.columns):
+                    st.error("Uploaded CSV columns must match training features exactly.")
+                else:
+                    # Predict
+                    y_pred_upload = model.predict(X_upload)
+                    if selected_model_name == "XGBoost":
+                        y_pred_upload = le.inverse_transform(y_pred_upload)
+
+                    # Probabilities if available
+                    if hasattr(model, "predict_proba"):
+                        y_prob_upload = model.predict_proba(X_upload)
+                    else:
+                        y_prob_upload = None
+
+                    # Calculate metrics
+                    acc = accuracy_score(y_upload, y_pred_upload)
+                    prec = precision_score(y_upload, y_pred_upload, average='weighted')
+                    rec = recall_score(y_upload, y_pred_upload, average='weighted')
+                    f1 = f1_score(y_upload, y_pred_upload, average='weighted')
+                    mcc = matthews_corrcoef(y_upload, y_pred_upload)
+
+                    if y_prob_upload is not None:
+                        y_upload_bin = label_binarize(y_upload, classes=np.unique(y_upload))
+                        auc_val = roc_auc_score(y_upload_bin, y_prob_upload, average='weighted')
+                    else:
+                        auc_val = None
+
+                    # Show metrics
+                    col1, col2, col3, col4, col5, col6 = st.columns(6)
+                    col1.metric("Accuracy", f"{acc:.4f}")
+                    col2.metric("Precision", f"{prec:.4f}")
+                    col3.metric("Recall", f"{rec:.4f}")
+                    col4.metric("F1 Score", f"{f1:.4f}")
+                    col5.metric("AUC", f"{auc_val if auc_val else 'N/A'}")
+                    col6.metric("MCC", f"{mcc:.4f}")
+
+                    st.markdown("---")
+                    st.subheader("Confusion Matrix (Uploaded Test)")
+
+                    cm_upload = confusion_matrix(y_upload, y_pred_upload)
+                    labels_upload = np.unique(y_upload)
+                    fig2, ax2 = plt.subplots(figsize=(8, 6))
+                    sns.heatmap(cm_upload, annot=True, fmt="d", cmap="Blues", ax=ax2)
+                    ax2.set_xlabel("Predicted")
+                    ax2.set_ylabel("Actual")
+                    st.pyplot(fig2)
 
 # =========================================================
-# TAB 3 — Explainability (UNCHANGED)
+# TAB 3 — Explainability
 # =========================================================
 with tab3:
-
+    st.subheader("Feature Importance")
     if selected_model_name in ["Decision Tree", "Random Forest", "XGBoost"]:
-
-        st.subheader("Feature Importance")
-
         if hasattr(model, "named_steps"):
             estimator = model.named_steps["model"]
         else:
@@ -218,91 +225,36 @@ with tab3:
 
         importances = estimator.feature_importances_
         feature_names = X_test.columns
-
         importance_df = pd.DataFrame({
             "Feature": feature_names,
             "Importance": importances
         }).sort_values("Importance", ascending=False).head(15)
 
         fig_imp, ax_imp = plt.subplots(figsize=(8, 6))
-        sns.barplot(
-            data=importance_df,
-            x="Importance",
-            y="Feature",
-            ax=ax_imp
-        )
-
+        sns.barplot(data=importance_df, x="Importance", y="Feature", ax=ax_imp)
         st.pyplot(fig_imp)
-
     else:
         st.info("Explainability not available for this model.")
 
-
 # =========================================================
-# TAB 4 — Upload & Predict (UNCHANGED LOGIC)
+# TAB 4 — Upload & Predict (unchanged logic)
 # =========================================================
 with tab4:
-
     st.subheader("Upload Test Dataset (Features Only)")
-
-    st.markdown("### Generate Sample Test File")
-
-    sample_size = st.slider(
-        "Select number of test samples to generate",
-        min_value=10,
-        max_value=len(X_test),
-        value=100,
-        step=10
-    )
-
-    sampled_test = X_test.sample(n=sample_size, random_state=42)
-
-    csv_sample = sampled_test.to_csv(index=False).encode("utf-8")
-
-    st.download_button(
-        label="Download Sample Test CSV",
-        data=csv_sample,
-        file_name=f"test_upload_{sample_size}.csv",
-        mime="text/csv"
-    )
-
-    st.markdown("---")
-    st.markdown("### Or Upload Your Own Test File")
-
-    uploaded_file = st.file_uploader(
+    uploaded_predict_file = st.file_uploader(
         "Upload CSV file containing test features",
         type="csv"
     )
 
-    if uploaded_file is not None:
-
-        try:
-            uploaded_df = pd.read_csv(uploaded_file)
-
-            st.write("Uploaded Data Preview:")
-            st.dataframe(uploaded_df.head())
-
-            expected_columns = X_test.columns.tolist()
-
-            if set(uploaded_df.columns) != set(expected_columns):
-                st.error("Uploaded CSV columns do not match training features.")
-                st.write("Expected columns:")
-                st.write(expected_columns)
-            else:
-                uploaded_df = uploaded_df[expected_columns]
-
-                predictions = model.predict(uploaded_df)
-
-                if selected_model_name == "XGBoost":
-                    predictions = le.inverse_transform(predictions)
-
-                prediction_labels = [CLASS_NAMES[p] for p in predictions]
-
-                result_df = uploaded_df.copy()
-                result_df["Predicted Activity"] = prediction_labels
-
-                st.success("Prediction Completed")
-                st.dataframe(result_df.head())
-
-        except Exception as e:
-            st.error(f"Error processing file: {e}")
+    if uploaded_predict_file is not None:
+        df_features = pd.read_csv(uploaded_predict_file)
+        if set(df_features.columns) != set(X_test.columns):
+            st.error("Uploaded CSV columns do not match training features.")
+        else:
+            preds = model.predict(df_features)
+            if selected_model_name == "XGBoost":
+                preds = le.inverse_transform(preds)
+            pred_labels = [CLASS_NAMES[p] for p in preds]
+            df_out = df_features.copy()
+            df_out["Predicted Activity"] = pred_labels
+            st.dataframe(df_out.head())
