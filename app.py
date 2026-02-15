@@ -146,13 +146,36 @@ with tab2:
         ax_cm.set_ylabel("Actual")
         st.pyplot(fig_cm)
 
-    # -------------------------------
-    # UPLOADED TEST METRICS
-    # -------------------------------
+# -------------------------------
+# UPLOADED TEST METRICS
+# -------------------------------
     else:
         st.subheader("Upload Your Test Dataset for Evaluation")
+
+        # ============================
+        # DOWNLOAD SAMPLE TEST FILE
+        # ============================
+        st.markdown("### Download Sample Compatible Test Dataset")
+
+        sample_df = X_test.copy()
+        sample_df["target"] = y_test
+
+        csv_download = sample_df.to_csv(index=False).encode("utf-8")
+
+        st.download_button(
+            label="Download Sample Test Dataset (with target)",
+            data=csv_download,
+            file_name="sample_test_dataset.csv",
+            mime="text/csv",
+        )
+
+        st.markdown("---")
+
+        # ============================
+        # FILE UPLOADER
+        # ============================
         uploaded_eval_file = st.file_uploader(
-            "Upload CSV containing features + target",
+            "Upload CSV containing top 30 features + target",
             type="csv"
         )
 
@@ -165,21 +188,26 @@ with tab2:
                 X_upload = df_upload_eval.drop(columns=['target'])
                 y_upload = df_upload_eval['target'].values
 
-                if set(X_upload.columns) != set(X_test.columns):
-                    st.error("Uploaded CSV columns must match training features exactly.")
+                # Check exact column match
+                if list(X_upload.columns) != list(X_test.columns):
+                    st.error(
+                        "Uploaded CSV columns must match training features EXACTLY.\n"
+                        "Please download the sample file above and use that format."
+                    )
                 else:
                     # Predict
                     y_pred_upload = model.predict(X_upload)
+
                     if selected_model_name == "XGBoost":
                         y_pred_upload = le.inverse_transform(y_pred_upload)
 
-                    # Probabilities if available
+                    # Probabilities
                     if hasattr(model, "predict_proba"):
                         y_prob_upload = model.predict_proba(X_upload)
                     else:
                         y_prob_upload = None
 
-                    # Calculate metrics
+                    # Compute Metrics
                     acc = accuracy_score(y_upload, y_pred_upload)
                     prec = precision_score(y_upload, y_pred_upload, average='weighted')
                     rec = recall_score(y_upload, y_pred_upload, average='weighted')
@@ -188,26 +216,37 @@ with tab2:
 
                     if y_prob_upload is not None:
                         y_upload_bin = label_binarize(y_upload, classes=np.unique(y_upload))
-                        auc_val = roc_auc_score(y_upload_bin, y_prob_upload, average='weighted')
+                        auc_val = roc_auc_score(
+                            y_upload_bin, y_prob_upload, average='weighted'
+                        )
                     else:
                         auc_val = None
 
-                    # Show metrics
+                    # Display Metrics
+                    st.markdown("### Uploaded Test Metrics")
+
                     col1, col2, col3, col4, col5, col6 = st.columns(6)
                     col1.metric("Accuracy", f"{acc:.4f}")
                     col2.metric("Precision", f"{prec:.4f}")
                     col3.metric("Recall", f"{rec:.4f}")
                     col4.metric("F1 Score", f"{f1:.4f}")
-                    col5.metric("AUC", f"{auc_val if auc_val else 'N/A'}")
+                    col5.metric("AUC", f"{auc_val:.4f}" if auc_val else "N/A")
                     col6.metric("MCC", f"{mcc:.4f}")
 
                     st.markdown("---")
-                    st.subheader("Confusion Matrix (Uploaded Test)")
 
+                    # Confusion Matrix
+                    st.subheader("Confusion Matrix (Uploaded Test)")
                     cm_upload = confusion_matrix(y_upload, y_pred_upload)
-                    labels_upload = np.unique(y_upload)
+
                     fig2, ax2 = plt.subplots(figsize=(8, 6))
-                    sns.heatmap(cm_upload, annot=True, fmt="d", cmap="Blues", ax=ax2)
+                    sns.heatmap(
+                        cm_upload,
+                        annot=True,
+                        fmt="d",
+                        cmap="Blues",
+                        ax=ax2
+                    )
                     ax2.set_xlabel("Predicted")
                     ax2.set_ylabel("Actual")
                     st.pyplot(fig2)
