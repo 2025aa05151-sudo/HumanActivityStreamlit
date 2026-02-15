@@ -230,16 +230,18 @@ with tab2:
                     f1 = f1_score(y_upload, y_pred_upload, average='weighted')
                     mcc = matthews_corrcoef(y_upload, y_pred_upload)
 
+                    # Safe Multiclass AUC Calculation
                     if y_prob_upload is not None:
-                        y_upload_bin = label_binarize(
-                            y_upload,
-                            classes=np.unique(y_upload)
-                        )
-                        auc_val = roc_auc_score(
-                            y_upload_bin,
-                            y_prob_upload,
-                            average='weighted'
-                        )
+                        try:
+                            auc_val = roc_auc_score(
+                                y_upload,
+                                y_prob_upload,
+                                multi_class="ovr",
+                                average="weighted"
+                            )
+                        except ValueError:
+                            # Happens when not all classes present
+                            auc_val = None
                     else:
                         auc_val = None
 
@@ -251,7 +253,7 @@ with tab2:
                     col2.metric("Precision", f"{prec:.4f}")
                     col3.metric("Recall", f"{rec:.4f}")
                     col4.metric("F1 Score", f"{f1:.4f}")
-                    col5.metric("AUC", f"{auc_val:.4f}" if auc_val else "N/A")
+                    col5.metric("AUC", f"{auc_val:.4f}" if auc_val else "N/A (Insufficient class diversity)")
                     col6.metric("MCC", f"{mcc:.4f}")
 
                     st.markdown("---")
