@@ -86,6 +86,7 @@ to predict human activities using sensor-based data and compare their performanc
 
 The dataset used is a multi-class classification dataset containing  561 features and 10299 instances. The goal is to classify human activity 
 into six categories.
+The dataset satisfies assignment constraints of minimum 12 features and 500 instances.
 Since it has a lot of features(561), have trimmd them down and using top 30 only.(using random forests)
 Dataset: https://archive.ics.uci.edu/dataset/240/human+activity+recognition+using+smartphones
 
